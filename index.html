@@ -3,23 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Company Name - Rentals</title>
+  <title><!-- TODO: COMPANY NAME -->Company Name - Rentals</title> <!-- ← placeholder -->
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <!-- Header / Navbar -->
   <header class="navbar">
-    <div class="logo">🏠 Company Name</div>
+    <div class="logo">🏠 <!-- TODO: COMPANY NAME -->Company Name</div> <!-- ← placeholder -->
     <nav>
       <a href="contact.html" class="btn">Contact</a>
       <a href="rentals.html" class="btn primary">Rentals</a>
-      <a href="login.html" class="btn">Owner Login</a>
+
+      <!-- Auth UI (driven by script.js) -->
+      <span id="userInfo" style="margin-right:.5rem; display:none;"></span>
+      <a id="loginBtn" class="btn" href="#" onclick="startLogin(event)">Owner Login</a>
+      <a id="logoutBtn" class="btn" href="#" onclick="startLogout(event)" style="display:none;">Logout</a>
     </nav>
   </header>
 
   <!-- Hero Section -->
   <section class="hero">
-    <h1>Welcome to Company Name</h1>
+    <h1>Welcome to <!-- TODO: COMPANY NAME -->Company Name</h1> <!-- ← placeholder -->
     <p>Providing quality rental properties with ease of access and trusted management.</p>
     <div class="cta">
       <a href="rentals.html" class="btn primary">View Rentals</a>

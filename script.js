@@ -1,2 +1,165 @@
-// Placeholder for future interactivity
-console.log("Site loaded");
+// =====================
+// Cognito SPA (PKCE) – minimal client-side auth
+// =====================
+
+// ---- CONFIG ----
+const COGNITO_DOMAIN   = "https://us-east-2xvjeuuayn.auth.us-east-2.amazoncognito.com";
+const COGNITO_CLIENT_ID = "7jt9bgu03in136n5d50l893j6t";
+const REDIRECT_URI      = "http://localhost:3000/";  // must match callbacks EXACTLY
+const LOGOUT_URI        = "http://localhost:3000/";
+
+
+// You can add "profile" if you want basic profile claims
+const OAUTH_SCOPES = ["openid", "email"];
+// ----------------
+
+// Storage
+const TOKENS_KEY = "cog_tokens_v1";
+function saveTokens(tokens) { sessionStorage.setItem(TOKENS_KEY, JSON.stringify(tokens)); }
+function loadTokens() { try { return JSON.parse(sessionStorage.getItem(TOKENS_KEY) || ""); } catch { return null; } }
+function clearTokens() { sessionStorage.removeItem(TOKENS_KEY); }
+
+// Helpers
+function base64UrlEncode(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function base64UrlDecode(str) {
+  str = str.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = str.length % 4 ? 4 - (str.length % 4) : 0;
+  return atob(str + "=".repeat(pad));
+}
+function parseJwt(token) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  return JSON.parse(base64UrlDecode(parts[1]));
+}
+
+// PKCE
+function randomString(bytes = 32) {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => ("0" + b.toString(16)).slice(-2)).join("");
+}
+async function sha256Plain(text) {
+  const data = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return new Uint8Array(digest);
+}
+
+async function buildLoginUrl() {
+  const codeVerifier = randomString(64);
+  sessionStorage.setItem("pkce_verifier", codeVerifier);
+
+  const challengeBytes = await sha256Plain(codeVerifier);
+  const codeChallenge = base64UrlEncode(challengeBytes);
+
+  const params = new URLSearchParams({
+    client_id: COGNITO_CLIENT_ID,
+    response_type: "code",
+    redirect_uri: REDIRECT_URI,
+    scope: OAUTH_SCOPES.join(" "),
+    code_challenge_method: "S256",
+    code_challenge: codeChallenge
+  });
+
+  return `${COGNITO_DOMAIN}/oauth2/authorize?${params.toString()}`;
+}
+
+async function startLogin(e) {
+  e?.preventDefault();
+  const url = await buildLoginUrl();
+  window.location.assign(url);
+}
+
+function startLogout(e) {
+  e?.preventDefault();
+  clearTokens();
+  const params = new URLSearchParams({
+    client_id: COGNITO_CLIENT_ID,
+    logout_uri: LOGOUT_URI
+  });
+  window.location.assign(`${COGNITO_DOMAIN}/logout?${params.toString()}`);
+}
+
+async function exchangeCodeForTokens(authCode) {
+  const verifier = sessionStorage.getItem("pkce_verifier");
+  if (!verifier) throw new Error("Missing PKCE verifier in sessionStorage");
+
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    client_id: COGNITO_CLIENT_ID,
+    code: authCode,
+    redirect_uri: REDIRECT_URI,
+    code_verifier: verifier
+  });
+
+  const res = await fetch(`${COGNITO_DOMAIN}/oauth2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Token exchange failed: ${res.status} ${txt}`);
+  }
+
+  const tokens = await res.json();
+  saveTokens(tokens);
+  sessionStorage.removeItem("pkce_verifier");
+}
+
+function updateAuthUI() {
+  const loginBtn = document.getElementById("loginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const userInfo = document.getElementById("userInfo");
+
+  const tokens = loadTokens();
+  if (tokens?.id_token) {
+    const claims = parseJwt(tokens.id_token) || {};
+    const email = claims.email || "(signed in)";
+    const groups = claims["cognito:groups"] || [];
+    const roleStr = groups.length ? ` – ${groups.join(", ")}` : "";
+
+    userInfo.textContent = `${email}${roleStr}`;
+    userInfo.style.display = "inline";
+    logoutBtn.style.display = "inline-block";
+    loginBtn.style.display = "none";
+  } else {
+    userInfo.style.display = "none";
+    logoutBtn.style.display = "none";
+    loginBtn.style.display = "inline-block";
+  }
+}
+
+async function handleAuthOnLoad() {
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("code");
+  if (code) {
+    try {
+      await exchangeCodeForTokens(code);
+    } catch (err) {
+      console.error(err);
+      alert("Login failed. Please try again.");
+    }
+    // Clean ?code=... from the bar
+    url.searchParams.delete("code");
+    history.replaceState({}, "", url.pathname + url.hash);
+  }
+  updateAuthUI();
+}
+
+document.addEventListener("DOMContentLoaded", handleAuthOnLoad);
+
+// Optional helpers for later API calls
+window.auth = {
+  getIdToken: () => loadTokens()?.id_token || null,
+  getAccessToken: () => loadTokens()?.access_token || null,
+  isOwnerOrEditor: () => {
+    const idt = loadTokens()?.id_token;
+    if (!idt) return false;
+    const groups = (parseJwt(idt) || {})["cognito:groups"] || [];
+    return groups.includes("owners") || groups.includes("editors");
+  }
+};
