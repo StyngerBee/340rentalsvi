@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Manage Listings</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    /* Minimal admin-specific styling */
+    .admin-wrap { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+    .toolbar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+    .pill { padding: .35rem .6rem; border: 1px solid #ddd; border-radius: 999px; font-size: .85rem; background:#fafafa }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 800px){ .grid{ grid-template-columns: 1fr 1fr; } }
+    .card { border: 1px solid #e5e5e5; border-radius: 12px; padding: 14px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .card h4 { margin: 0 0 .25rem 0; }
+    .muted { color:#666; font-size: .9rem; }
+    .row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+    .row > * { margin: .25rem 0; }
+    .danger { background:#ffe8e8; border-color:#ffcccc; }
+    .ok { background:#e9f8ef; border-color:#c9eed7; }
+    .form { border:1px solid #e5e5e5; border-radius:12px; padding:14px; background:#fff; }
+    .form .col2 { display:grid; gap:10px; grid-template-columns: 1fr; }
+    @media (min-width:700px){ .form .col2{ grid-template-columns: 1fr 1fr; } }
+    .form label { font-size:.9rem; color:#333; }
+    .form input[type="text"], .form input[type="number"], .form textarea {
+      width: 100%; padding: .55rem .65rem; border:1px solid #ccc; border-radius:8px;
+    }
+    .right { margin-left:auto; }
+    .hidden { display:none !important; }
+    .tag { display:inline-block; margin-right:.35rem; margin-bottom:.25rem; padding:.18rem .45rem; background:#f2f2f2; border-radius: 999px; font-size:.8rem; }
+    .btn.small { padding:.35rem .6rem; font-size:.9rem; }
+  </style>
+</head>
+<body>
+  <!-- Re-use your site navbar -->
+  <header class="navbar">
+    <div class="logo">🏠 Company Name</div>
+    <nav>
+      <a href="index.html" class="btn">Home</a>
+      <a href="rentals.html" class="btn">Rentals</a>
+      <span id="userInfo" class="pill hidden"></span>
+      <a id="loginBtn" class="btn" href="#" onclick="startLogin(event)">Owner Login</a>
+      <a id="logoutBtn" class="btn hidden" href="#" onclick="startLogout(event)">Logout</a>
+    </nav>
+  </header>
+
+  <main class="admin-wrap">
+    <h2>Manage Listings</h2>
+
+    <!-- Guard message if not signed in / not owner -->
+    <div id="guard" class="card danger hidden">
+      <strong>Sign in required.</strong>
+      <div>Please use the Owner Login to access the dashboard.</div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <label class="pill"><input type="checkbox" id="availableOnly" /> Available only</label>
+      <input id="filterBeds" type="number" min="0" placeholder="Min beds" class="pill" style="width:100px"/>
+      <input id="filterBaths" type="number" min="0" placeholder="Min baths" class="pill" style="width:100px"/>
+      <button id="refreshBtn" class="btn small">Refresh</button>
+      <span class="right muted" id="countLabel"></span>
+    </div>
+
+    <!-- Add / Edit Form -->
+    <section class="form" id="editSection">
+      <h3 id="formTitle">Add New Property</h3>
+      <form id="propForm">
+        <input type="hidden" id="propId"/>
+        <div class="col2">
+          <div>
+            <label>Title</label>
+            <input type="text" id="title" required/>
+          </div>
+          <div>
+            <label>Price (USD)</label>
+            <input type="number" id="price" min="0" step="1" required/>
+          </div>
+          <div>
+            <label>Bedrooms</label>
+            <input type="number" id="bedrooms" min="0" step="1" required/>
+          </div>
+          <div>
+            <label>Bathrooms</label>
+            <input type="number" id="bathrooms" min="0" step="1" required/>
+          </div>
+          <div>
+            <label>Available</label><br/>
+            <input type="checkbox" id="available"/>
+          </div>
+          <div>
+            <label>Tags (comma-separated)</label>
+            <input type="text" id="tags" placeholder="e.g. 2br, pet-friendly"/>
+          </div>
+        </div>
+        <div style="margin-top:.75rem">
+          <label>Description</label>
+          <textarea id="description" rows="3"></textarea>
+        </div>
+        <div style="margin-top:.75rem">
+          <label>Photo URLs (comma-separated)</label>
+          <input type="text" id="photos" placeholder="https://... , https://..."/>
+        </div>
+        <div class="row" style="margin-top:1rem">
+          <button class="btn primary" type="submit" id="saveBtn">Save</button>
+          <button class="btn" type="button" id="resetBtn">Reset</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Listings -->
+    <section style="margin-top:1rem">
+      <h3>All Properties</h3>
+      <div id="cards" class="grid"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
