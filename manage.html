@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title><!-- TODO: COMPANY NAME -->Company Name – Manage Listings</title> <!-- ← placeholder -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="navbar">
+  <div class="logo">🏠 <!-- TODO: COMPANY NAME -->Company Name</div> <!-- ← placeholder -->
+  <nav>
+    <a href="index.html" class="btn">Home</a>
+    <a href="rentals.html" class="btn">Rentals</a>
+    <span id="userInfo" style="margin:0 .5rem; display:none;"></span>
+    <a id="loginBtn" class="btn" href="#" onclick="startLogin(event)">Owner Login</a>
+    <a id="logoutBtn" class="btn" href="#" onclick="startLogout(event)" style="display:none;">Logout</a>
+  </nav>
+</header>
+
+<main class="content">
+  <h1>Manage Listings</h1>
+
+  <div id="adminGuard" style="display:none;">
+    <form id="propForm" class="prop-form">
+      <input type="hidden" id="propId"/>
+      <div class="form-row">
+        <input id="title" placeholder="Title" required />
+        <input id="price" type="number" placeholder="Price (USD)" required />
+        <input id="bedrooms" type="number" placeholder="Bedrooms" required />
+        <input id="bathrooms" type="number" step="0.5" placeholder="Bathrooms" required />
+      </div>
+      <div class="form-row">
+        <input id="city" placeholder="City" />
+        <input id="sqft" type="number" placeholder="Sqft" />
+        <label class="chk"><input id="available" type="checkbox" checked/> Available</label>
+      </div>
+      <textarea id="description" placeholder="Description"></textarea>
+      <input id="images" placeholder="Image URLs (comma-separated)"/>
+      <input id="tags" placeholder="Tags (comma-separated: pet:allowed,type:house)"/>
+      <div class="form-actions">
+        <button class="btn primary" type="submit">Save</button>
+        <button class="btn" type="button" id="resetBtn">Reset</button>
+      </div>
+    </form>
+
+    <h2>Current Listings</h2>
+    <div id="adminList" class="grid"></div>
+  </div>
+
+  <div id="adminDenied" style="display:none;">
+    <p>You must be an <strong>owner</strong> or <strong>editor</strong> to access this page.</p>
+  </div>
+</main>
+
+<script src="script.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  // gate the page
+  const canManage = window.auth?.isOwnerOrEditor?.();
+  document.getElementById('adminGuard').style.display = canManage ? 'block' : 'none';
+  document.getElementById('adminDenied').style.display = canManage ? 'none' : 'block';
+
+  if (!canManage) return;
+
+  const form = document.getElementById('propForm');
+  const resetBtn = document.getElementById('resetBtn');
+  const adminList = document.getElementById('adminList');
+
+  function parseCSV(s){ return (s||'').split(',').map(x=>x.trim()).filter(Boolean); }
+  function fillForm(p){
+    document.getElementById('propId').value = p?.id || '';
+    document.getElementById('title').value = p?.title || '';
+    document.getElementById('price').value = p?.price ?? '';
+    document.getElementById('bedrooms').value = p?.bedrooms ?? '';
+    document.getElementById('bathrooms').value = p?.bathrooms ?? '';
+    document.getElementById('city').value = p?.city || '';
+    document.getElementById('sqft').value = p?.sqft ?? '';
+    document.getElementById('available').checked = !!p?.available;
+    document.getElementById('description').value = p?.description || '';
+    document.getElementById('images').value = (p?.images||[]).join(', ');
+    document.getElementById('tags').value = (p?.tags||[]).join(', ');
+  }
+  function toPayload(){
+    return {
+      id: document.getElementById('propId').value || undefined,
+      title: document.getElementById('title').value.trim(),
+      price: Number(document.getElementById('price').value),
+      bedrooms: Number(document.getElementById('bedrooms').value),
+      bathrooms: Number(document.getElementById('bathrooms').value),
+      city: document.getElementById('city').value.trim(),
+      sqft: Number(document.getElementById('sqft').value) || null,
+      available: document.getElementById('available').checked,
+      description: document.getElementById('description').value.trim(),
+      images: parseCSV(document.getElementById('images').value),
+      tags: parseCSV(document.getElementById('tags').value),
+    };
+  }
+  function renderCard(p){
+    const status = p.available ? 'available' : 'unavailable';
+    const tags = (p.tags||[]).slice(0,6).map(t=>`<span class="badge">${t}</span>`).join('');
+    const img = (p.images && p.images[0]) || '';
+    return `
+      <div class="card">
+        <div class="carousel">${img ? `<img src="${img}" style="width:100%;height:auto;object-fit:cover;">` : '<div style="aspect-ratio:4/3;background:#eee;"></div>'}</div>
+        <div class="card-body" style="padding:0.75rem 1rem;">
+          <div class="title-row"><div style="font-weight:600;">${p.title}</div><div class="price">$${Number(p.price).toLocaleString()}</div></div>
+          <div class="meta">${p.bedrooms} bd • ${p.bathrooms} ba • ${p.city || ''}</div>
+          <div style="margin-top:4px;"><span class="status ${status}">${p.available ? 'Available' : 'Unavailable'}</span></div>
+          <p style="font-size:14px;color:#555;margin:.5rem 0 0;">${p.description||''}</p>
+          <div class="badges">${tags}</div>
+          <div class="admin-actions">
+            <button class="btn" data-act="edit" data-id="${p.id}">Edit</button>
+            <button class="btn" data-act="del" data-id="${p.id}">Delete</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  async function refresh(){
+    const list = await api.getProperties({});
+    adminList.innerHTML = list.map(renderCard).join('');
+    adminList.querySelectorAll('button[data-act="edit"]').forEach(b=>{
+      b.onclick = async ()=> {
+        const p = (await api.getProperties({})).find(x=>x.id===b.dataset.id);
+        if (p) fillForm(p);
+        window.scrollTo({top:0,behavior:'smooth'});
+      };
+    });
+    adminList.querySelectorAll('button[data-act="del"]').forEach(b=>{
+      b.onclick = async ()=> {
+        if (!confirm('Delete this listing?')) return;
+        await api.deleteProperty(b.dataset.id);
+        await refresh();
+      };
+    });
+  }
+  form.onsubmit = async (e)=>{
+    e.preventDefault();
+    const payload = toPayload();
+    if (payload.id) await api.updateProperty(payload.id, payload);
+    else await api.createProperty(payload);
+    fillForm(null);
+    await refresh();
+    alert('Saved.');
+  };
+  resetBtn.onclick = ()=> fillForm(null);
+
+  await refresh();
+});
+</script>
+</body>
+</html>
