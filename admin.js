@@ -1,61 +1,87 @@
-// admin.js — Admin dashboard logic (CRUD)
-// Requires: window.auth (from your script.js) and API_BASE set globally.
+// admin.js — Admin dashboard logic (CRUD) with address + Google Maps link
+// Requires: window.auth (from script.js) and API_BASE set globally.
 
 (() => {
-  const cardsEl = document.getElementById('cards');
-  const countLabel = document.getElementById('countLabel');
-  const availableOnlyEl = document.getElementById('availableOnly');
-  const filterBedsEl = document.getElementById('filterBeds');
-  const filterBathsEl = document.getElementById('filterBaths');
-  const refreshBtn = document.getElementById('refreshBtn');
-  const guard = document.getElementById('guard');
+  // DOM references
+  const cardsEl        = document.getElementById('cards');
+  const countLabel     = document.getElementById('countLabel');
+  const availableOnlyEl= document.getElementById('availableOnly');
+  const filterBedsEl   = document.getElementById('filterBeds');
+  const filterBathsEl  = document.getElementById('filterBaths');
+  const refreshBtn     = document.getElementById('refreshBtn');
+  const guard          = document.getElementById('guard');
 
-  // form elements
-  const form = document.getElementById('propForm');
-  const formTitle = document.getElementById('formTitle');
-  const idEl = document.getElementById('propId');
-  const titleEl = document.getElementById('title');
-  const priceEl = document.getElementById('price');
-  const bedsEl = document.getElementById('bedrooms');
-  const bathsEl = document.getElementById('bathrooms');
-  const availEl = document.getElementById('available');
-  const tagsEl = document.getElementById('tags');
-  const descEl = document.getElementById('description');
-  const photosEl = document.getElementById('photos');
-  const resetBtn = document.getElementById('resetBtn');
+  // Form elements
+  const form       = document.getElementById('propForm');
+  const formTitle  = document.getElementById('formTitle');
+  const idEl       = document.getElementById('propId');
+  const titleEl    = document.getElementById('title');
+  const priceEl    = document.getElementById('price');
+  const bedsEl     = document.getElementById('bedrooms');
+  const bathsEl    = document.getElementById('bathrooms');
+  const availableEl= document.getElementById('available');
+  const tagsEl     = document.getElementById('tags');
+  const descEl     = document.getElementById('description');
+  const photosEl   = document.getElementById('photos');
+  const addressEl  = document.getElementById('address');
+  const cityEl     = document.getElementById('city');
+  const resetBtn   = document.getElementById('resetBtn');
 
   let allProps = [];
 
-  // --- Auth guard: require logged-in owner/editor ---
-  function isOwnerOrEditor() {
-    try {
-      const idt = window.auth?.getIdToken?.();
-      if (!idt) return false;
-      const claims = JSON.parse(atob(idt.split('.')[1]));
-      const groups = claims['cognito:groups'];
-      if (Array.isArray(groups)) return groups.includes('owners') || groups.includes('editors');
-      if (typeof groups === 'string') return groups.split(',').includes('owners') || groups.split(',').includes('editors');
-      return false;
-    } catch { return false; }
+  // ---------- Helpers ----------
+
+  function escapeHtml(str="") {
+    return String(str)
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#039;");
+  }
+
+  function parseCSV(s) {
+    return (s || "")
+      .split(",")
+      .map(x => x.trim())
+      .filter(Boolean);
   }
 
   function requireAuth() {
-    const authed = isOwnerOrEditor();
-    document.getElementById('userInfo')?.classList.toggle('hidden', !authed);
-    document.getElementById('logoutBtn')?.classList.toggle('hidden', !authed);
-    document.getElementById('loginBtn')?.classList.toggle('hidden', authed);
-    guard.classList.toggle('hidden', authed);
+    const authed = window.auth?.isOwnerOrEditor?.() || false;
+
+    if (!authed) {
+      guard?.classList.remove("hidden");
+    } else {
+      guard?.classList.add("hidden");
+    }
+
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const userInfo = document.getElementById("userInfo");
+    if (authed) {
+      loginBtn && (loginBtn.style.display = "none");
+      logoutBtn && (logoutBtn.style.display = "");
+      userInfo && (userInfo.style.display = "");
+    }
+
     return authed;
   }
 
-  // --- API helpers (use ID token for writes) ---
+  // ---------- API helpers ----------
+
   async function apiGet() {
     const r = await fetch(`${API_BASE}/properties`);
-    if (!r.ok) throw new Error('GET failed');
-    return r.json();
+    const text = await r.text();
+    console.log("GET /properties RAW:", r.status, text);
+    if (!r.ok) throw new Error(`GET failed: ${r.status}`);
+    return JSON.parse(text || "[]");
   }
+
   async function apiCreate(payload) {
     const idt = window.auth.getIdToken();
+    if (!idt) throw new Error("Not authenticated (no ID token)");
+    console.log("CREATE PAYLOAD:", payload);
     const r = await fetch(`${API_BASE}/properties`, {
       method: 'POST',
       headers: {
@@ -64,11 +90,18 @@
       },
       body: JSON.stringify(payload)
     });
-    if (!r.ok) throw new Error(`Create failed ${r.status}`);
-    return r.json();
+    const text = await r.text();
+    console.log("CREATE RAW RESPONSE:", r.status, text);
+    if (!r.ok) {
+      throw new Error(`Create failed ${r.status}: ${text}`);
+    }
+    return JSON.parse(text || "{}");
   }
+
   async function apiUpdate(id, payload) {
     const idt = window.auth.getIdToken();
+    if (!idt) throw new Error("Not authenticated (no ID token)");
+    console.log("UPDATE PAYLOAD:", id, payload);
     const r = await fetch(`${API_BASE}/properties/${encodeURIComponent(id)}`, {
       method: 'PUT',
       headers: {
@@ -77,128 +110,212 @@
       },
       body: JSON.stringify(payload)
     });
-    if (!r.ok) throw new Error(`Update failed ${r.status}`);
-    return r.json();
+    const text = await r.text();
+    console.log("UPDATE RAW RESPONSE:", r.status, text);
+    if (!r.ok) {
+      throw new Error(`Update failed ${r.status}: ${text}`);
+    }
+    return JSON.parse(text || "{}");
   }
+
   async function apiDelete(id) {
     const idt = window.auth.getIdToken();
+    if (!idt) throw new Error("Not authenticated (no ID token)");
     const r = await fetch(`${API_BASE}/properties/${encodeURIComponent(id)}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${idt}` }
     });
-    if (!r.ok) throw new Error(`Delete failed ${r.status}`);
+    const text = await r.text();
+    console.log("DELETE RAW RESPONSE:", r.status, text);
+    if (!r.ok) throw new Error(`Delete failed ${r.status}: ${text}`);
+    return true;
   }
 
-  // --- Rendering ---
-  function toTags(arr) {
-    if (!Array.isArray(arr)) return '';
-    return arr.map(t => `<span class="tag">${escapeHtml(String(t))}</span>`).join('');
-  }
-  function escapeHtml(s) {
-    return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-  }
-  function applyFilters(list) {
-    const availOnly = availableOnlyEl.checked;
-    const minBeds = Number(filterBedsEl.value || 0);
-    const minBaths = Number(filterBathsEl.value || 0);
-    return list.filter(p =>
-      (!availOnly || p.available) &&
-      (isNaN(minBeds) || (p.bedrooms ?? 0) >= minBeds) &&
-      (isNaN(minBaths) || (p.bathrooms ?? 0) >= minBaths)
-    );
-  }
-  function render(list) {
-    const filtered = applyFilters(list);
-    countLabel.textContent = `${filtered.length} shown / ${list.length} total`;
-    cardsEl.innerHTML = filtered.map(p => {
-      const photos = Array.isArray(p.photos) ? p.photos : [];
-      const img = photos[0] ? `<img src="${escapeHtml(photos[0])}" alt="" style="width:100%;height:160px;object-fit:cover;border-radius:10px;margin-bottom:.5rem">` : '';
-      return `
-        <div class="card">
-          ${img}
-          <div class="row">
-            <h4 class="rightless">${escapeHtml(p.title || 'Untitled')}</h4>
-            <span class="pill ${p.available ? 'ok' : 'danger'}">${p.available ? 'Available' : 'Unavailable'}</span>
-          </div>
-          <div class="muted">$${Number(p.price||0).toLocaleString()} · ${p.bedrooms||0} bd · ${p.bathrooms||0} ba</div>
-          <p class="muted" style="margin:.5rem 0 0">${escapeHtml(p.description || '')}</p>
-          <div style="margin:.5rem 0 0">${toTags(p.tags)}</div>
-          <div class="row" style="margin-top:.75rem">
-            <button class="btn small" data-edit="${p.id}">Edit</button>
-            <button class="btn small danger" data-del="${p.id}">Delete</button>
-            <span class="muted right">#${escapeHtml(p.id)}</span>
-          </div>
-        </div>
-      `;
-    }).join('');
-    // wire edit/delete
-    cardsEl.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => startEdit(btn.dataset.edit)));
-    cardsEl.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', () => doDelete(btn.dataset.del)));
-  }
+  // ---------- Form helpers ----------
 
-  // --- Form handlers ---
   function clearForm() {
-    idEl.value = '';
-    formTitle.textContent = 'Add New Property';
-    form.reset();
+    idEl.value = "";
+    formTitle.textContent = "Add New Property";
+    titleEl.value = "";
+    priceEl.value = "";
+    bedsEl.value = "";
+    bathsEl.value = "";
+    availableEl.checked = true;
+    tagsEl.value = "";
+    descEl.value = "";
+    photosEl.value = "";
+    addressEl.value = "";
+    cityEl.value = "";
   }
-  function startEdit(id) {
-    const p = allProps.find(x => x.id === id);
-    if (!p) return;
-    idEl.value = p.id;
-    formTitle.textContent = 'Edit Property';
-    titleEl.value = p.title || '';
-    priceEl.value = p.price ?? 0;
-    bedsEl.value = p.bedrooms ?? 0;
-    bathsEl.value = p.bathrooms ?? 0;
-    availEl.checked = !!p.available;
-    tagsEl.value = Array.isArray(p.tags) ? p.tags.join(', ') : '';
-    descEl.value = p.description || '';
-    photosEl.value = Array.isArray(p.photos) ? p.photos.join(', ') : '';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  function fillForm(p) {
+    idEl.value        = p?.id || "";
+    formTitle.textContent = p?.id ? "Edit Property" : "Add New Property";
+    titleEl.value     = p?.title || "";
+    priceEl.value     = p?.price ?? "";
+    bedsEl.value      = p?.bedrooms ?? "";
+    bathsEl.value     = p?.bathrooms ?? "";
+    availableEl.checked = p?.available ?? false;
+    tagsEl.value      = (p?.tags || []).join(", ");
+    descEl.value      = p?.description || "";
+    photosEl.value    = (p?.photos || []).join(", ");
+    addressEl.value   = p?.address || "";
+    cityEl.value      = p?.city || "";
   }
-  async function doDelete(id) {
-    if (!confirm('Delete this property?')) return;
-    await apiDelete(id);
-    await load();
-  }
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+
+  function payloadFromForm() {
     const payload = {
       title: titleEl.value.trim(),
       description: descEl.value.trim(),
       price: Number(priceEl.value || 0),
       bedrooms: Number(bedsEl.value || 0),
       bathrooms: Number(bathsEl.value || 0),
-      available: !!availEl.checked,
-      tags: tagsEl.value.split(',').map(s => s.trim()).filter(Boolean),
-      photos: photosEl.value.split(',').map(s => s.trim()).filter(Boolean),
+      available: !!availableEl.checked,
+      tags: parseCSV(tagsEl.value),
+      photos: parseCSV(photosEl.value),
+      address: addressEl.value.trim(),
+      city: cityEl.value.trim(),
     };
-    if (idEl.value) {
-      await apiUpdate(idEl.value, payload);
-    } else {
-      await apiCreate(payload);
-    }
-    clearForm();
-    await load();
-  });
-  resetBtn.addEventListener('click', (e) => { e.preventDefault(); clearForm(); });
+    console.log("payloadFromForm ->", payload);
+    return payload;
+  }
 
-  // --- Load & events ---
+  // ---------- Render cards ----------
+
+  function render(listRaw) {
+    const minBeds  = Number(filterBedsEl.value || 0);
+    const minBaths = Number(filterBathsEl.value || 0);
+    const onlyAvail = !!availableOnlyEl.checked;
+
+    const filtered = (listRaw || []).filter(p =>
+      (p.bedrooms || 0) >= minBeds &&
+      (p.bathrooms || 0) >= minBaths &&
+      (!onlyAvail || p.available)
+    );
+
+    countLabel.textContent = `${filtered.length} of ${listRaw.length} properties`;
+
+    cardsEl.innerHTML = filtered.map(p => {
+      const img      = (p.photos && p.photos[0]) || "";
+      const address  = p.address || "";
+      const city     = p.city || "";
+      const mapQuery = (address || city).trim();
+      const hasMap   = mapQuery.length > 0;
+
+      const mapLink = hasMap
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
+        : "";
+
+      return `
+        <article class="card">
+          <div class="row" style="justify-content:space-between;align-items:flex-start;">
+            <h4>${escapeHtml(p.title || "")}</h4>
+            <div class="muted right">$${Number(p.price || 0).toLocaleString()}</div>
+          </div>
+          <div class="row">
+            <div>${p.bedrooms || 0} bd • ${p.bathrooms || 0} ba</div>
+            ${p.city ? `<div class="muted">• ${escapeHtml(p.city)}</div>` : ""}
+          </div>
+          ${
+            address
+              ? `<div class="muted" style="margin-top:2px;">${escapeHtml(address)}</div>`
+              : city
+                ? `<div class="muted" style="margin-top:2px;">${escapeHtml(city)}</div>`
+                : ""
+          }
+          <div class="row" style="margin-top:.25rem">
+            <span class="pill ${p.available ? 'ok' : 'danger'}">
+              ${p.available ? "Available" : "Unavailable"}
+            </span>
+            ${p.tags && p.tags.length
+              ? `<span class="muted">Tags: ${p.tags.map(escapeHtml).join(", ")}</span>`
+              : ""
+            }
+          </div>
+          <p class="muted" style="margin-top:.5rem;">${escapeHtml(p.description || "")}</p>
+          ${img ? `<div style="margin-top:.5rem;"><img src="${img}" alt="" style="max-width:100%;border-radius:8px;"/></div>` : ""}
+          <div class="row" style="margin-top:.75rem; justify-content:flex-end; gap:.5rem;">
+            ${mapLink
+              ? `<a href="${mapLink}" target="_blank" rel="noopener" class="btn small">View on Map</a>`
+              : ""
+            }
+            <button class="btn small" data-edit="${escapeHtml(p.id)}">Edit</button>
+            <button class="btn small" data-del="${escapeHtml(p.id)}">Delete</button>
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    // Wire edit/delete
+    cardsEl.querySelectorAll("[data-edit]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.edit;
+        const p  = allProps.find(x => x.id === id);
+        if (p) fillForm(p);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+
+    cardsEl.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.del;
+        if (!confirm("Delete this property?")) return;
+        try {
+          await apiDelete(id);
+          await load();
+        } catch (err) {
+          console.error(err);
+          alert("Delete failed: " + err.message);
+        }
+      });
+    });
+  }
+
+  // ---------- Load data ----------
+
   async function load() {
     const list = await apiGet();
-    // sort newest first
-    allProps = list.sort((a,b) => (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || ''));
+    console.log("PROPERTIES FROM API:", list);
+    allProps = list.sort((a,b) => (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || ""));
     render(allProps);
   }
 
-  [availableOnlyEl, filterBedsEl, filterBathsEl].forEach(el => el.addEventListener('input', () => render(allProps)));
-  refreshBtn.addEventListener('click', load);
+  // ---------- Event wiring ----------
 
-  // init
-  document.addEventListener('DOMContentLoaded', async () => {
-    const ok = requireAuth();
-    if (!ok) return;
-    await load();
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = payloadFromForm();
+
+    if (!payload.title) {
+      alert("Title is required");
+      return;
+    }
+
+    try {
+      const id = idEl.value.trim();
+      if (id) {
+        await apiUpdate(id, payload);
+      } else {
+        await apiCreate(payload);
+      }
+      clearForm();
+      await load();
+    } catch (err) {
+      console.error(err);
+      alert("Save failed: " + err.message);
+    }
   });
+
+  resetBtn.addEventListener("click", () => clearForm());
+
+  [availableOnlyEl, filterBedsEl, filterBathsEl].forEach(el =>
+    el.addEventListener("input", () => render(allProps))
+  );
+  refreshBtn.addEventListener("click", () => load());
+
+  // ---------- Init ----------
+
+  const ok = requireAuth();
+  if (!ok) return;
+  load();
 })();

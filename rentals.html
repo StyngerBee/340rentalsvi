@@ -1,75 +1,143 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Rentals - <!-- TODO: COMPANY NAME -->Company Name</title> <!-- ← placeholder -->
-  <link rel="stylesheet" href="styles.css"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>340 Rentals VI – Rentals</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
-<header class="navbar">
-  <div class="logo">🏠 <!-- TODO: COMPANY NAME -->Company Name</div> <!-- ← placeholder -->
-  <nav>
-    <a href="index.html" class="btn">Home</a>
-    <a href="contact.html" class="btn">Contact</a>
-    <span id="userInfo" style="margin:0 .5rem; display:none;"></span>
-    <a id="loginBtn" class="btn" href="#" onclick="startLogin(event)">Owner Login</a>
-    <a id="logoutBtn" class="btn" href="#" onclick="startLogout(event)" style="display:none;">Logout</a>
-  </nav>
-</header>
+  <header class="navbar">
+    <div class="logo">🏠 <!-- TODO: COMPANY NAME -->Company Name</div>
+    <nav>
+      <a href="index.html" class="btn">Home</a>
+      <a href="contact.html" class="btn">Contact</a>
+      <span id="userInfo" style="margin:0 .5rem; display:none;"></span>
+      <a id="loginBtn" class="btn" href="#" onclick="startLogin(event)">Owner Login</a>
+      <a id="logoutBtn" class="btn" href="#" onclick="startLogout(event)" style="display:none;">Logout</a>
+    </nav>
+  </header>
 
-<main class="content">
-  <h1>Available Rentals</h1>
+  <main class="content">
+    <h1>Available Rentals</h1>
 
-  <div class="filters">
-    <input id="beds" type="number" placeholder="Min beds"/>
-    <input id="baths" type="number" step="0.5" placeholder="Min baths"/>
-    <input id="maxPrice" type="number" placeholder="Max price"/>
-    <label class="chk"><input id="onlyAvail" type="checkbox"/> Only available</label>
-    <button id="apply" class="btn">Apply</button>
-    <button id="clear" class="btn">Clear</button>
-  </div>
+    <div class="filters">
+      <input id="beds" type="number" placeholder="Min beds" />
+      <input id="baths" type="number" step="0.5" placeholder="Min baths" />
+      <input id="maxPrice" type="number" placeholder="Max price" />
+      <label class="chk">
+        <input id="onlyAvail" type="checkbox" /> Only available
+      </label>
+      <button id="apply" class="btn">Apply</button>
+      <button id="clear" class="btn">Clear</button>
+    </div>
 
-  <div id="grid" class="grid"></div>
-</main>
+    <div id="grid" class="grid"></div>
+  </main>
 
-<script src="script.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', async () => {
-  const grid = document.getElementById('grid');
-  function render(list){
-    grid.innerHTML = list.map(p=>{
-      const img = (p.images && p.images[0]) || '';
-      return `
+  <script src="script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const grid = document.getElementById('grid');
+      const bedsInput = document.getElementById('beds');
+      const bathsInput = document.getElementById('baths');
+      const maxPriceInput = document.getElementById('maxPrice');
+      const onlyAvailCheckbox = document.getElementById('onlyAvail');
+      const applyBtn = document.getElementById('apply');
+      const clearBtn = document.getElementById('clear');
+
+      function render(list) {
+        if (!list.length) {
+          grid.innerHTML = '<p>No rentals match your filters.</p>';
+          return;
+        }
+
+        grid.innerHTML = list.map(p => {
+          const img = (p.photos && p.photos[0]) || (p.images && p.images[0]) || '';
+          const address = p.address || '';
+          const city = p.city || '';
+          const mapQuery = (address || city).trim();
+          const hasMap = mapQuery.length > 0;
+          const mapLink = hasMap
+            ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
+            : '';
+
+
+          return `
         <div class="card">
-          <div class="carousel">${img ? `<img src="${img}" style="width:100%;height:auto;object-fit:cover;">` : '<div style="aspect-ratio:4/3;background:#eee;"></div>'}</div>
+          <div class="carousel">
+            ${img
+              ? `<img src="${img}" style="width:100%;height:auto;object-fit:cover;">`
+              : '<div style="aspect-ratio:4/3;background:#eee;"></div>'
+            }
+          </div>
           <div class="card-body" style="padding:0.75rem 1rem;">
-            <div class="title-row"><div style="font-weight:600;">${p.title}</div><div class="price">$${Number(p.price).toLocaleString()}</div></div>
-            <div class="meta">${p.bedrooms} bd • ${p.bathrooms} ba • ${p.city || ''}</div>
-            <div style="margin-top:4px;"><span class="status ${p.available?'available':'unavailable'}">${p.available?'Available':'Unavailable'}</span></div>
-            <p style="font-size:14px;color:#555;margin:.5rem 0 0;">${p.description||''}</p>
+            <div class="title-row">
+              <div style="font-weight:600;">${p.title || ''}</div>
+              <div class="price">$${Number(p.price || 0).toLocaleString()}</div>
+            </div>
+            <div class="meta">
+              ${p.bedrooms || 0} bd • ${p.bathrooms || 0} ba
+              ${p.city ? ' • ' + p.city : ''}
+            </div>
+           ${address
+              ? `<div style="font-size:12px;color:#666;margin-top:2px;">${address}</div>`
+              : city
+                ? `<div style="font-size:12px;color:#666;margin-top:2px;">${city}</div>`
+                : ''
+            }
+
+            <div style="margin-top:4px;">
+              <span class="status ${p.available ? 'available' : 'unavailable'}">
+                ${p.available ? 'Available' : 'Unavailable'}
+              </span>
+            </div>
+            <p style="font-size:14px;color:#555;margin:.5rem 0 0;">
+              ${p.description || ''}
+            </p>
+            <div class="card-actions" style="margin-top:0.5rem;">
+              ${mapLink
+              ? `<a class="btn" href="${mapLink}" target="_blank" rel="noopener">View on Map</a>`
+              : ''
+            }
+            </div>
           </div>
         </div>
       `;
-    }).join('');
-  }
-  async function loadAndFilter(){
-    const all = await api.getProperties({});
-    const minBeds = Number(document.getElementById('beds').value)||0;
-    const minBaths = Number(document.getElementById('baths').value)||0;
-    const priceCap = Number(document.getElementById('maxPrice').value)||Infinity;
-    const only = document.getElementById('onlyAvail').checked;
-    const filtered = all.filter(p =>
-      p.bedrooms>=minBeds && p.bathrooms>=minBaths && p.price<=priceCap && (!only || p.available)
-    );
-    render(filtered);
-  }
-  document.getElementById('apply').onclick = loadAndFilter;
-  document.getElementById('clear').onclick = ()=>{
-    beds.value=baths.value=maxPrice.value=''; onlyAvail.checked=false; loadAndFilter();
-  };
-  await loadAndFilter();
-});
-</script>
+        }).join('');
+      }
+
+      async function loadAndFilter() {
+        const all = await api.getProperties({});
+        const minBeds = Number(bedsInput.value) || 0;
+        const minBaths = Number(bathsInput.value) || 0;
+        const priceCap = maxPriceInput.value ? Number(maxPriceInput.value) : Infinity;
+        const onlyAvail = onlyAvailCheckbox.checked;
+
+        const filtered = all.filter(p =>
+          (p.bedrooms || 0) >= minBeds &&
+          (p.bathrooms || 0) >= minBaths &&
+          Number(p.price || 0) <= priceCap &&
+          (!onlyAvail || p.available)
+        );
+
+        render(filtered);
+      }
+
+      applyBtn.addEventListener('click', loadAndFilter);
+      clearBtn.addEventListener('click', () => {
+        bedsInput.value = '';
+        bathsInput.value = '';
+        maxPriceInput.value = '';
+        onlyAvailCheckbox.checked = false;
+        loadAndFilter();
+      });
+
+      await loadAndFilter();
+    });
+  </script>
 </body>
+
 </html>

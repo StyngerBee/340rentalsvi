@@ -115,6 +115,9 @@ export const handler = async (event) => {
         available: Boolean(body.available ?? false),
         tags: Array.isArray(body.tags) ? body.tags : [],
         photos: Array.isArray(body.photos) ? body.photos : [],
+        address: body.address ?? "",
+        city: body.city ?? "",
+        mapUrl: body.mapUrl ?? "",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -133,7 +136,20 @@ export const handler = async (event) => {
       const body = parseJson(event.body);
       if (!body) return bad(400, "invalid_json");
 
-      const safeFields = ["title", "description", "price", "bedrooms", "bathrooms", "available", "tags", "photos"];
+      const safeFields = [
+        "title",
+        "description",
+        "price",
+        "bedrooms",
+        "bathrooms",
+        "available",
+        "tags",
+        "photos",
+        "address",  // add this
+        "city",     // and this
+        "mapUrl",   // optional but nice
+      ];
+
       const exprNames = {};
       const exprValues = {};
       const sets = [];
@@ -183,3 +199,4 @@ export const handler = async (event) => {
     return bad(500, "server_error");
   }
 };
+//arn:aws:lambda:us-east-2:082255439630:function:properties-api
