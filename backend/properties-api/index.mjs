@@ -12,6 +12,8 @@ import {
 import * as jose from "jose";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+
 
 // ===== ENV =====
 const REGION = process.env.REGION || "us-east-2";
@@ -20,11 +22,14 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
 const USER_POOL_ID = process.env.USER_POOL_ID || "us-east-2_XvJeUUAyn";         // <-- set in Lambda env
 const APP_CLIENT_ID = process.env.APP_CLIENT_ID || "7jt9bgu03in136n5d50l893j6t"; // <-- set in Lambda env
 const BUCKET = process.env.BUCKET || "340rentals-photos"; // change if needed
+const CONTACT_TO = process.env.CONTACT_TO;       // where messages go
+const CONTACT_FROM = process.env.CONTACT_FROM || CONTACT_TO; // SES-verified "From"
 
 // ===== AWS Clients =====
 const ddbClient = new DynamoDBClient({ region: REGION });
 const doc = DynamoDBDocumentClient.from(ddbClient);
 const s3 = new S3Client({ region: REGION });
+const ses = new SESClient({ region: REGION });
 
 // ===== JWT Verify (Cognito ID token) =====
 const COGNITO_ISS = `https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}`;
@@ -100,7 +105,53 @@ export const handler = async (event) => {
   }
 
   try {
-    // --- NEW: POST /upload-urls (owners/editors) ---
+    // --- POST /contact (public) ---
+    if (method === "POST" && path === "/contact") {
+      const body = parseJson(event.body);
+      if (!body) return bad(400, "invalid_json");
+
+      const { name, email, phone, subject, message } = body;
+
+      if (!name || !email || !message) {
+        return bad(400, "missing_fields");
+      }
+      if (!CONTACT_TO || !CONTACT_FROM) {
+        console.error("CONTACT_TO/CONTACT_FROM not configured");
+        return bad(500, "not_configured");
+      }
+
+      const subj = subject && subject.trim()
+        ? subject.trim()
+        : `New rental inquiry from ${name}`;
+
+      const textLines = [
+        `Name: ${name}`,
+        `Email: ${email}`,
+        phone ? `Phone: ${phone}` : null,
+        subject ? `Subject: ${subject}` : null,
+        "",
+        "Message:",
+        message
+      ].filter(Boolean);
+
+      const text = textLines.join("\n");
+
+      await ses.send(new SendEmailCommand({
+        Source: CONTACT_FROM,
+        Destination: { ToAddresses: [CONTACT_TO] },
+        ReplyToAddresses: [email],
+        Message: {
+          Subject: { Data: subj },
+          Body: {
+            Text: { Data: text }
+          }
+        }
+      }));
+
+      return ok(200, { ok: true });
+    }
+
+    // --- POST /upload-urls (owners/editors) ---
     if (method === "POST" && path === "/upload-urls") {
       const claims = await verifyIdToken(authz).catch(() => null);
       if (!userIsOwnerOrEditor(claims)) return bad(401, "unauthorized");
@@ -127,7 +178,6 @@ export const handler = async (event) => {
 
         const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 }); // 15 min
         const publicUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
-
 
         uploads.push({ name, uploadUrl, publicUrl });
       }

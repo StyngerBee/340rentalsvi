@@ -3,22 +3,93 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>340 Rentals VI</title> <!-- ← placeholder -->
+  <title>340 Rentals VI – Contact</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="navbar">
-    <div class="logo">🏠 <!-- TODO: COMPANY NAME -->Company Name</div> <!-- ← placeholder -->
+    <div class="logo">🏠 340 Rentals</div>
     <nav>
       <a href="index.html" class="btn">Home</a>
       <a href="rentals.html" class="btn">Rentals</a>
+      <span id="userInfo" style="margin:0 .5rem; display:none;"></span>
+      <a id="loginBtn" class="btn" href="#" onclick="startLogin(event)">Owner Login</a>
+      <a id="logoutBtn" class="btn" href="#" onclick="startLogout(event)" style="display:none;">Logout</a>
     </nav>
   </header>
 
   <main class="content">
     <h1>Contact Us</h1>
-    <p>Email us at <!-- TODO: CONTACT EMAIL --><a href="mailto:info@example.com">info@example.com</a></p> <!-- ← placeholder -->
-    <p>Or call us at <!-- TODO: CONTACT PHONE -->(555) 123-4567</p> <!-- ← placeholder -->
+    <p>If you’re interested in a property or have any questions, send us a message and we’ll get back to you.</p>
+
+    <form id="contactForm" class="card" style="max-width:600px;margin-top:1rem;">
+      <div class="form-row">
+        <label for="name">Name<span style="color:red;">*</span></label>
+        <input id="name" name="name" type="text" required />
+      </div>
+
+      <div class="form-row">
+        <label for="email">Email<span style="color:red;">*</span></label>
+        <input id="email" name="email" type="email" required />
+      </div>
+
+      <div class="form-row">
+        <label for="phone">Phone</label>
+        <input id="phone" name="phone" type="tel" />
+      </div>
+
+      <div class="form-row">
+        <label for="subject">Subject</label>
+        <input id="subject" name="subject" type="text" placeholder="Interested in 2bd in St. Augustine, etc." />
+      </div>
+
+      <div class="form-row">
+        <label for="message">Message<span style="color:red;">*</span></label>
+        <textarea id="message" name="message" rows="5" required></textarea>
+      </div>
+
+      <button type="submit" class="btn primary">Send Message</button>
+      <span id="contactStatus" style="margin-left:0.75rem;font-size:0.9rem;"></span>
+    </form>
   </main>
+
+  <script src="script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('contactForm');
+      const statusEl = document.getElementById('contactStatus');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        statusEl.style.color = '';
+        statusEl.textContent = 'Sending…';
+
+        const payload = {
+          name: form.name.value.trim(),
+          email: form.email.value.trim(),
+          phone: form.phone.value.trim(),
+          subject: form.subject.value.trim(),
+          message: form.message.value.trim()
+        };
+
+        if (!payload.name || !payload.email || !payload.message) {
+          statusEl.style.color = 'red';
+          statusEl.textContent = 'Please fill in your name, email, and a message.';
+          return;
+        }
+
+        try {
+          await window.api.sendContact(payload);
+          statusEl.style.color = 'green';
+          statusEl.textContent = 'Message sent. We’ll get back to you soon.';
+          form.reset();
+        } catch (err) {
+          console.error(err);
+          statusEl.style.color = 'red';
+          statusEl.textContent = 'Sorry, something went wrong sending your message.';
+        }
+      });
+    });
+  </script>
 </body>
 </html>

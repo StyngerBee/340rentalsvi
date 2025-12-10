@@ -187,6 +187,23 @@ const api = {
     });
     if(!res.ok){ const txt=await res.text(); throw new Error(`DELETE /properties failed: ${res.status} ${txt}`); }
     return { ok:true };
+  },
+
+  // -------- CONTACT FORM --------
+    async sendContact(payload){
+    const res = await fetch(`${API_BASE}/contact`, {
+      method: "POST",
+      // IMPORTANT: don't set Content-Type so we avoid CORS preflight
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`POST /contact failed: ${res.status} ${txt}`);
+    }
+    // backend might just return { ok: true }; be tolerant
+    return res.json().catch(() => ({}));
   }
+
 };
+
 window.api = api;
