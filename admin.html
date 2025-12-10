@@ -1,28 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>340 Rentals VI – Admin</title>
-  <link rel="stylesheet" href="styles.css"/>
+  <link rel="stylesheet" href="styles.css" />
   <style>
-    .admin-wrap { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
-    .toolbar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
-    .pill { padding: .35rem .6rem; border: 1px solid #ddd; border-radius: 999px; font-size: .85rem; background:#fafafa }
-    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-    @media (min-width: 800px){ .grid{ grid-template-columns: 1fr 1fr; } }
-    .card { border: 1px solid #e5e5e5; border-radius: 12px; padding: 12px 14px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-    .card h4 { margin: 0 0 .25rem 0; }
-    .muted { color:#666; font-size: .9rem; }
-    .row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
-    .row > * { margin: .25rem 0; }
-    .danger { background:#ffe8e8; border-color:#ffcccc; }
-    .ok { background:#e9f8ef; border-color:#c9eed7; }
-    .form { border:1px solid #e5e5e5; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; background:#fafafa; }
-    .col2 { display:grid; grid-template-columns: 1fr 1fr; gap:.75rem 1rem; }
-    @media(max-width:700px){ .col2{ grid-template-columns:1fr; } }
+    .admin-wrap {
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      padding: .35rem .6rem;
+      border: 1px solid #ddd;
+      border-radius: 999px;
+      font-size: .85rem;
+      background: #fafafa
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    @media (min-width: 800px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .card {
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+    }
+
+    .card h4 {
+      margin: 0 0 .25rem 0;
+    }
+
+    .muted {
+      color: #666;
+      font-size: .9rem;
+    }
+
+    .row {
+      display: flex;
+      gap: .5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .row>* {
+      margin: .25rem 0;
+    }
+
+    .danger {
+      background: #ffe8e8;
+      border-color: #ffcccc;
+    }
+
+    .ok {
+      background: #e9f8ef;
+      border-color: #c9eed7;
+    }
+
+    .form {
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: #fafafa;
+    }
+
+    .col2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem 1rem;
+    }
+
+    @media(max-width:700px) {
+      .col2 {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
+
 <body>
   <header class="navbar">
     <div class="logo">🏠 <!-- TODO: COMPANY NAME -->Company Name</div>
@@ -50,8 +128,8 @@
         <input type="checkbox" id="availableOnly" />
         Available only
       </label>
-      <input id="filterBeds" type="number" min="0" placeholder="Min beds" class="pill" style="width:100px"/>
-      <input id="filterBaths" type="number" min="0" placeholder="Min baths" class="pill" style="width:100px"/>
+      <input id="filterBeds" type="number" min="0" placeholder="Min beds" class="pill" style="width:100px" />
+      <input id="filterBaths" type="number" min="0" placeholder="Min baths" class="pill" style="width:100px" />
       <button id="refreshBtn" class="btn small" type="button">Refresh</button>
       <span class="right muted" id="countLabel"></span>
     </div>
@@ -60,45 +138,45 @@
     <section class="form" id="editSection">
       <h3 id="formTitle">Add New Property</h3>
       <form id="propForm">
-        <input type="hidden" id="propId"/>
+        <input type="hidden" id="propId" />
 
         <div class="col2">
           <div>
             <label>Title</label>
-            <input type="text" id="title" required/>
+            <input type="text" id="title" required />
           </div>
           <div>
             <label>Price (USD)</label>
-            <input type="number" id="price" min="0" step="1" required/>
+            <input type="number" id="price" min="0" step="1" required />
           </div>
           <div>
             <label>Bedrooms</label>
-            <input type="number" id="bedrooms" min="0" step="1" required/>
+            <input type="number" id="bedrooms" min="0" step="1" required />
           </div>
           <div>
             <label>Bathrooms</label>
-            <input type="number" id="bathrooms" min="0" step="1" required/>
+            <input type="number" id="bathrooms" min="0" step="1" required />
           </div>
 
           <!-- NEW: Address field used for Google Maps -->
           <div>
             <label>Address (used for Google Maps)</label>
-            <input type="text" id="address" placeholder="123 Main St, Charlotte Amalie, St Thomas"/>
+            <input type="text" id="address" placeholder="123 Main St, Charlotte Amalie, St Thomas" />
           </div>
 
           <!-- Optional: city if you want to store separately -->
           <div>
             <label>City (optional)</label>
-            <input type="text" id="city" placeholder="City / Island"/>
+            <input type="text" id="city" placeholder="City / Island" />
           </div>
 
           <div>
-            <label>Available</label><br/>
-            <input type="checkbox" id="available"/>
+            <label>Available</label><br />
+            <input type="checkbox" id="available" />
           </div>
           <div>
             <label>Tags (comma-separated)</label>
-            <input type="text" id="tags" placeholder="e.g. 2br, pet-friendly"/>
+            <input type="text" id="tags" placeholder="e.g. 2br, pet-friendly" />
           </div>
         </div>
 
@@ -108,9 +186,15 @@
         </div>
 
         <div style="margin-top:.75rem">
-          <label>Photo URLs (comma-separated)</label>
-          <input type="text" id="photos" placeholder="https://... , https://..."/>
+          <label>Photos</label>
+          <!-- New: file picker -->
+          <input type="file" id="photoFiles" multiple accept="image/*" style="display:block;margin-bottom:0.25rem;" />
+          <small style="display:block;margin-bottom:0.25rem;color:#555;">
+            You can also paste existing image URLs below (optional).
+          </small>
+          <input type="text" id="photos" placeholder="https://... , https://..." />
         </div>
+
 
         <div class="row" style="margin-top:1rem">
           <button class="btn primary" type="submit" id="saveBtn">Save</button>
@@ -129,4 +213,5 @@
   <script src="script.js"></script>
   <script src="admin.js"></script>
 </body>
+
 </html>

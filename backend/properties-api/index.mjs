@@ -10,6 +10,8 @@ import {
   GetCommand,
 } from "@aws-sdk/lib-dynamodb";
 import * as jose from "jose";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // ===== ENV =====
 const REGION = process.env.REGION || "us-east-2";
@@ -17,10 +19,12 @@ const TABLE = process.env.TABLE || "Properties";
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:3000";
 const USER_POOL_ID = process.env.USER_POOL_ID || "us-east-2_XvJeUUAyn";         // <-- set in Lambda env
 const APP_CLIENT_ID = process.env.APP_CLIENT_ID || "7jt9bgu03in136n5d50l893j6t"; // <-- set in Lambda env
+const BUCKET = process.env.BUCKET || "340rentals-photos"; // change if needed
 
 // ===== AWS Clients =====
 const ddbClient = new DynamoDBClient({ region: REGION });
 const doc = DynamoDBDocumentClient.from(ddbClient);
+const s3 = new S3Client({ region: REGION });
 
 // ===== JWT Verify (Cognito ID token) =====
 const COGNITO_ISS = `https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}`;
@@ -78,6 +82,12 @@ function userIsOwnerOrEditor(claims) {
   return false;
 }
 
+function makeObjectKey(userId, fileName) {
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const ts = Date.now();
+  return `properties/${userId || "anon"}/${ts}_${safeName}`;
+}
+
 // ===== Handler =====
 export const handler = async (event) => {
   const method = event.requestContext?.http?.method || event.httpMethod;
@@ -90,6 +100,41 @@ export const handler = async (event) => {
   }
 
   try {
+    // --- NEW: POST /upload-urls (owners/editors) ---
+    if (method === "POST" && path === "/upload-urls") {
+      const claims = await verifyIdToken(authz).catch(() => null);
+      if (!userIsOwnerOrEditor(claims)) return bad(401, "unauthorized");
+
+      const body = parseJson(event.body);
+      if (!body || !Array.isArray(body.files) || !body.files.length) {
+        return bad(400, "invalid_files");
+      }
+
+      const userId = claims?.sub || "anon";
+      const uploads = [];
+
+      for (const f of body.files) {
+        const name = f.name || "file";
+        const type = f.type || "application/octet-stream";
+        const key = makeObjectKey(userId, name);
+
+        const command = new PutObjectCommand({
+          Bucket: BUCKET,
+          Key: key,
+          ContentType: type,
+          // no ACL here; use bucket policy for public read
+        });
+
+        const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 }); // 15 min
+        const publicUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
+
+
+        uploads.push({ name, uploadUrl, publicUrl });
+      }
+
+      return ok(200, { uploads });
+    }
+
     // GET /properties  (public)
     if (method === "GET" && path === "/properties") {
       const res = await doc.send(new ScanCommand({ TableName: TABLE }));
@@ -145,9 +190,9 @@ export const handler = async (event) => {
         "available",
         "tags",
         "photos",
-        "address",  // add this
-        "city",     // and this
-        "mapUrl",   // optional but nice
+        "address",
+        "city",
+        "mapUrl",
       ];
 
       const exprNames = {};

@@ -1,43 +1,44 @@
-// admin.js — Admin dashboard logic (CRUD) with address + Google Maps link
+// admin.js — Admin dashboard logic (CRUD) with address + Google Maps link + S3 photo upload
 // Requires: window.auth (from script.js) and API_BASE set globally.
 
 (() => {
   // DOM references
-  const cardsEl        = document.getElementById('cards');
-  const countLabel     = document.getElementById('countLabel');
-  const availableOnlyEl= document.getElementById('availableOnly');
-  const filterBedsEl   = document.getElementById('filterBeds');
-  const filterBathsEl  = document.getElementById('filterBaths');
-  const refreshBtn     = document.getElementById('refreshBtn');
-  const guard          = document.getElementById('guard');
+  const cardsEl = document.getElementById('cards');
+  const countLabel = document.getElementById('countLabel');
+  const availableOnlyEl = document.getElementById('availableOnly');
+  const filterBedsEl = document.getElementById('filterBeds');
+  const filterBathsEl = document.getElementById('filterBaths');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const guard = document.getElementById('guard');
 
   // Form elements
-  const form       = document.getElementById('propForm');
-  const formTitle  = document.getElementById('formTitle');
-  const idEl       = document.getElementById('propId');
-  const titleEl    = document.getElementById('title');
-  const priceEl    = document.getElementById('price');
-  const bedsEl     = document.getElementById('bedrooms');
-  const bathsEl    = document.getElementById('bathrooms');
-  const availableEl= document.getElementById('available');
-  const tagsEl     = document.getElementById('tags');
-  const descEl     = document.getElementById('description');
-  const photosEl   = document.getElementById('photos');
-  const addressEl  = document.getElementById('address');
-  const cityEl     = document.getElementById('city');
-  const resetBtn   = document.getElementById('resetBtn');
+  const form = document.getElementById('propForm');
+  const formTitle = document.getElementById('formTitle');
+  const idEl = document.getElementById('propId');
+  const titleEl = document.getElementById('title');
+  const priceEl = document.getElementById('price');
+  const bedsEl = document.getElementById('bedrooms');
+  const bathsEl = document.getElementById('bathrooms');
+  const availableEl = document.getElementById('available');
+  const tagsEl = document.getElementById('tags');
+  const descEl = document.getElementById('description');
+  const photosEl = document.getElementById('photos');
+  const photoFilesEl = document.getElementById('photoFiles');
+  const addressEl = document.getElementById('address');
+  const cityEl = document.getElementById('city');
+  const resetBtn = document.getElementById('resetBtn');
 
   let allProps = [];
 
   // ---------- Helpers ----------
 
-  function escapeHtml(str="") {
+  function escapeHtml(str = "") {
     return String(str)
-      .replace(/&/g,"&amp;")
-      .replace(/</g,"&lt;")
-      .replace(/>/g,"&gt;")
-      .replace(/"/g,"&quot;")
-      .replace(/'/g,"&#039;");
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
   function parseCSV(s) {
@@ -131,6 +132,74 @@
     return true;
   }
 
+  // ---------- S3 upload helpers ----------
+
+  async function getUploadUrls(files) {
+    if (!files.length) return [];
+
+    const idt = window.auth.getIdToken();
+    if (!idt) throw new Error("Not authenticated (no ID token for upload-urls)");
+
+    const payload = {
+      files: files.map(f => ({
+        name: f.name,
+        type: f.type || "application/octet-stream",
+      })),
+    };
+
+    console.log("REQUESTING UPLOAD URLS:", payload);
+
+    const r = await fetch(`${API_BASE}/upload-urls`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${idt}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const text = await r.text();
+    console.log("UPLOAD-URLS RAW RESPONSE:", r.status, text);
+
+    if (!r.ok) {
+      throw new Error(`upload-urls failed ${r.status}: ${text}`);
+    }
+
+    const data = JSON.parse(text || "{}");
+    return data.uploads || [];
+  }
+
+  async function uploadFilesToS3(files, uploads) {
+    const results = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const info = uploads[i];
+      if (!info) continue;
+
+      console.log("S3 PUT START:", file.name, "->", info.uploadUrl);
+
+      const res = await fetch(info.uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        body: file,
+      });
+
+      const bodyText = await res.text().catch(() => "");
+      console.log("S3 PUT RESPONSE:", res.status, bodyText);
+
+      if (!res.ok) {
+        throw new Error(`S3 upload failed for ${file.name}: ${res.status} ${bodyText}`);
+      }
+
+      results.push(info.publicUrl);
+    }
+
+    return results;
+  }
+
   // ---------- Form helpers ----------
 
   function clearForm() {
@@ -146,21 +215,23 @@
     photosEl.value = "";
     addressEl.value = "";
     cityEl.value = "";
+    if (photoFilesEl) photoFilesEl.value = "";
   }
 
   function fillForm(p) {
-    idEl.value        = p?.id || "";
+    idEl.value = p?.id || "";
     formTitle.textContent = p?.id ? "Edit Property" : "Add New Property";
-    titleEl.value     = p?.title || "";
-    priceEl.value     = p?.price ?? "";
-    bedsEl.value      = p?.bedrooms ?? "";
-    bathsEl.value     = p?.bathrooms ?? "";
+    titleEl.value = p?.title || "";
+    priceEl.value = p?.price ?? "";
+    bedsEl.value = p?.bedrooms ?? "";
+    bathsEl.value = p?.bathrooms ?? "";
     availableEl.checked = p?.available ?? false;
-    tagsEl.value      = (p?.tags || []).join(", ");
-    descEl.value      = p?.description || "";
-    photosEl.value    = (p?.photos || []).join(", ");
-    addressEl.value   = p?.address || "";
-    cityEl.value      = p?.city || "";
+    tagsEl.value = (p?.tags || []).join(", ");
+    descEl.value = p?.description || "";
+    photosEl.value = (p?.photos || []).join(", ");
+    addressEl.value = p?.address || "";
+    cityEl.value = p?.city || "";
+    if (photoFilesEl) photoFilesEl.value = "";
   }
 
   function payloadFromForm() {
@@ -172,7 +243,7 @@
       bathrooms: Number(bathsEl.value || 0),
       available: !!availableEl.checked,
       tags: parseCSV(tagsEl.value),
-      photos: parseCSV(photosEl.value),
+      // photos will be filled in submit handler
       address: addressEl.value.trim(),
       city: cityEl.value.trim(),
     };
@@ -183,7 +254,7 @@
   // ---------- Render cards ----------
 
   function render(listRaw) {
-    const minBeds  = Number(filterBedsEl.value || 0);
+    const minBeds = Number(filterBedsEl.value || 0);
     const minBaths = Number(filterBathsEl.value || 0);
     const onlyAvail = !!availableOnlyEl.checked;
 
@@ -196,11 +267,11 @@
     countLabel.textContent = `${filtered.length} of ${listRaw.length} properties`;
 
     cardsEl.innerHTML = filtered.map(p => {
-      const img      = (p.photos && p.photos[0]) || "";
-      const address  = p.address || "";
-      const city     = p.city || "";
+      const img = (p.photos && p.photos[0]) || "";
+      const address = p.address || "";
+      const city = p.city || "";
       const mapQuery = (address || city).trim();
-      const hasMap   = mapQuery.length > 0;
+      const hasMap = mapQuery.length > 0;
 
       const mapLink = hasMap
         ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
@@ -216,12 +287,11 @@
             <div>${p.bedrooms || 0} bd • ${p.bathrooms || 0} ba</div>
             ${p.city ? `<div class="muted">• ${escapeHtml(p.city)}</div>` : ""}
           </div>
-          ${
-            address
-              ? `<div class="muted" style="margin-top:2px;">${escapeHtml(address)}</div>`
-              : city
-                ? `<div class="muted" style="margin-top:2px;">${escapeHtml(city)}</div>`
-                : ""
+          ${address
+            ? `<div class="muted" style="margin-top:2px;">${escapeHtml(address)}</div>`
+            : city
+              ? `<div class="muted" style="margin-top:2px;">${escapeHtml(city)}</div>`
+              : ""
           }
           <div class="row" style="margin-top:.25rem">
             <span class="pill ${p.available ? 'ok' : 'danger'}">
@@ -250,7 +320,7 @@
     cardsEl.querySelectorAll("[data-edit]").forEach(btn => {
       btn.addEventListener("click", () => {
         const id = btn.dataset.edit;
-        const p  = allProps.find(x => x.id === id);
+        const p = allProps.find(x => x.id === id);
         if (p) fillForm(p);
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
@@ -276,7 +346,9 @@
   async function load() {
     const list = await apiGet();
     console.log("PROPERTIES FROM API:", list);
-    allProps = list.sort((a,b) => (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || ""));
+    allProps = list.sort((a, b) =>
+      (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || "")
+    );
     render(allProps);
   }
 
@@ -292,12 +364,31 @@
     }
 
     try {
+      const manualPhotos = parseCSV(photosEl.value);
+      const fileList = photoFilesEl?.files ? Array.from(photoFilesEl.files) : [];
+
+      let uploadedUrls = [];
+      if (fileList.length) {
+        // 1) ask backend for presigned URLs
+        const uploads = await getUploadUrls(fileList);
+        if (!uploads.length) {
+          throw new Error("No upload URLs returned");
+        }
+
+        // 2) upload files directly to S3
+        uploadedUrls = await uploadFilesToS3(fileList, uploads);
+      }
+
+      // 3) merge manual URLs + S3 URLs
+      payload.photos = [...manualPhotos, ...uploadedUrls];
+
       const id = idEl.value.trim();
       if (id) {
         await apiUpdate(id, payload);
       } else {
         await apiCreate(payload);
       }
+
       clearForm();
       await load();
     } catch (err) {

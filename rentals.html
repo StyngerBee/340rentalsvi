@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 
 <head>
@@ -48,6 +48,53 @@
       const applyBtn = document.getElementById('apply');
       const clearBtn = document.getElementById('clear');
 
+      // Normalize photos/images into a clean array of URLs
+      function normalizePhotos(p) {
+        if (Array.isArray(p.photos)) {
+          return p.photos.filter(Boolean);
+        }
+        if (typeof p.photos === 'string' && p.photos.trim()) {
+          return p.photos.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        if (Array.isArray(p.images)) {
+          return p.images.filter(Boolean);
+        }
+        if (typeof p.images === 'string' && p.images.trim()) {
+          return p.images.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return [];
+      }
+
+      // Hook up prev/next buttons on all carousels
+      function setupCarousels() {
+        const carousels = grid.querySelectorAll('.carousel[data-photos]');
+        carousels.forEach(carousel => {
+          const photos = JSON.parse(carousel.dataset.photos || '[]');
+          if (!photos.length) return;
+
+          let index = Number(carousel.dataset.index) || 0;
+          const imgEl = carousel.querySelector('img');
+          const prevBtn = carousel.querySelector('.carousel-btn.prev');
+          const nextBtn = carousel.querySelector('.carousel-btn.next');
+
+          function show(i) {
+            index = (i + photos.length) % photos.length;
+            carousel.dataset.index = index;
+            imgEl.src = photos[index];
+          }
+
+          prevBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            show(index - 1);
+          });
+
+          nextBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            show(index + 1);
+          });
+        });
+      }
+
       function render(list) {
         if (!list.length) {
           grid.innerHTML = '<p>No rentals match your filters.</p>';
@@ -55,7 +102,13 @@
         }
 
         grid.innerHTML = list.map(p => {
-          const img = (p.photos && p.photos[0]) || (p.images && p.images[0]) || '';
+          const photos = normalizePhotos(p);
+          const photosAttr = photos.length
+            ? JSON.stringify(photos).replace(/"/g, '&quot;')
+            : '[]';
+
+          const hasPhotos = photos.length > 0;
+
           const address = p.address || '';
           const city = p.city || '';
           const mapQuery = (address || city).trim();
@@ -64,15 +117,27 @@
             ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
             : '';
 
+          const carouselHtml = hasPhotos
+            ? `
+          <div class="carousel" data-photos="${photosAttr}" data-index="0" style="position:relative;">
+            <button class="carousel-btn prev" type="button"
+              style="position:absolute;top:50%;left:8px;transform:translateY(-50%);
+                     background:rgba(0,0,0,0.4);border:none;color:#fff;width:28px;height:28px;
+                     border-radius:50%;cursor:pointer;font-size:18px;line-height:26px;">&#10094;</button>
+            <img src="${photos[0]}" style="width:100%;height:180px;object-fit:cover;border-radius:10px 10px 0 0;">
+            <button class="carousel-btn next" type="button"
+              style="position:absolute;top:50%;right:8px;transform:translateY(-50%);
+                     background:rgba(0,0,0,0.4);border:none;color:#fff;width:28px;height:28px;
+                     border-radius:50%;cursor:pointer;font-size:18px;line-height:26px;">&#10095;</button>
+          </div>`
+            : `
+          <div class="carousel">
+            <div style="aspect-ratio:4/3;background:#eee;border-radius:10px 10px 0 0;"></div>
+          </div>`;
 
           return `
         <div class="card">
-          <div class="carousel">
-            ${img
-              ? `<img src="${img}" style="width:100%;height:auto;object-fit:cover;">`
-              : '<div style="aspect-ratio:4/3;background:#eee;"></div>'
-            }
-          </div>
+          ${carouselHtml}
           <div class="card-body" style="padding:0.75rem 1rem;">
             <div class="title-row">
               <div style="font-weight:600;">${p.title || ''}</div>
@@ -99,14 +164,17 @@
             </p>
             <div class="card-actions" style="margin-top:0.5rem;">
               ${mapLink
-              ? `<a class="btn" href="${mapLink}" target="_blank" rel="noopener">View on Map</a>`
-              : ''
-            }
+                ? `<a class="btn" href="${mapLink}" target="_blank" rel="noopener">View on Map</a>`
+                : ''
+              }
             </div>
           </div>
         </div>
       `;
         }).join('');
+
+        // After we dump the HTML, wire up the carousels
+        setupCarousels();
       }
 
       async function loadAndFilter() {
