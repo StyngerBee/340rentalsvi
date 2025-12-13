@@ -3,21 +3,18 @@
 // =====================
 
 // ---- AUTH CONFIG ----
-// TODO: COGNITO_DOMAIN - your Managed Login/Hosted UI domain
-const COGNITO_DOMAIN = "https://us-east-2xvjeuuayn.auth.us-east-2.amazoncognito.com"; // ← placeholder
-// TODO: COGNITO_CLIENT_ID - your App Client ID (Public client)
-const COGNITO_CLIENT_ID = "7jt9bgu03in136n5d50l893j6t"; // ← placeholder
-// TODO: REDIRECT_URI - must exactly match Allowed callback URL (include trailing slash if used)
-const REDIRECT_URI = "http://localhost:3000/"; // ← placeholder
-// TODO: LOGOUT_URI - must match Allowed sign-out URL
-const LOGOUT_URI = "http://localhost:3000/"; // ← placeholder
+const COGNITO_DOMAIN = "https://us-east-2xvjeuuayn.auth.us-east-2.amazoncognito.com";
+const COGNITO_CLIENT_ID = "7jt9bgu03in136n5d50l893j6t";
+
+// Always match the current site origin (prevents redirect_mismatch)
+const REDIRECT_URI = `${window.location.origin}/`;
+const LOGOUT_URI   = `${window.location.origin}/`;
+
 const OAUTH_SCOPES = ["openid", "email"];
 
 // ---- API CONFIG ----
-// TODO: API_BASE - your API Gateway base URL (no trailing slash), e.g. https://abc123.execute-api.us-east-2.amazonaws.com/prod
 const API_BASE = "https://ovhzgjj862.execute-api.us-east-2.amazonaws.com"; // no trailing slash
-// TODO: REGION - AWS region for your stack (used only for docs, not code logic)
-const AWS_REGION = "<REGION>"; // ← placeholder
+const AWS_REGION = "<REGION>"; // placeholder
 // --------------------
 
 // Storage
@@ -89,30 +86,51 @@ async function exchangeCodeForTokens(authCode){
   if(!res.ok){ const txt=await res.text().catch(()=> ""); throw new Error(`Token exchange failed: ${res.status} ${txt}`); }
   const tokens=await res.json(); saveTokens(tokens); sessionStorage.removeItem("pkce_verifier");
 }
+
+// Show/hide the "Manage Listings" link
+function updateAdminLinkVisibility(){
+  const adminLink = document.getElementById("adminLink");
+  if (!adminLink) return;
+
+  if (window.auth?.isOwnerOrEditor?.()) {
+    adminLink.style.display = "inline-flex";
+  } else {
+    adminLink.style.display = "none";
+  }
+}
+
 function updateAuthUI(){
   const loginBtn=document.getElementById("loginBtn");
   const logoutBtn=document.getElementById("logoutBtn");
   const userInfo=document.getElementById("userInfo");
   const tokens=loadTokens();
+
   if(tokens?.id_token){
     const claims=parseJwt(tokens.id_token)||{};
     const email=claims.email||"(signed in)";
     const groups=claims["cognito:groups"]||[];
     const roleStr=groups.length?` – ${groups.join(", ")}`:"";
+
     if(userInfo){ userInfo.textContent=`${email}${roleStr}`; userInfo.style.display="inline"; }
-    if(logoutBtn) logoutBtn.style.display="inline-block";
+    if(logoutBtn) logoutBtn.style.display="inline-flex";
     if(loginBtn) loginBtn.style.display="none";
   } else {
     if(userInfo) userInfo.style.display="none";
     if(logoutBtn) logoutBtn.style.display="none";
-    if(loginBtn) loginBtn.style.display="inline-block";
+    if(loginBtn) loginBtn.style.display="inline-flex";
   }
+
+  // keep nav consistent across pages
+  updateAdminLinkVisibility();
 }
+
 async function handleAuthOnLoad(){
   const url=new URL(window.location.href);
   const code=url.searchParams.get("code");
   if(code){
-    try{ await exchangeCodeForTokens(code); } catch(err){ console.error(err); alert("Login failed. Please try again."); }
+    try{ await exchangeCodeForTokens(code); }
+    catch(err){ console.error(err); alert("Login failed. Please try again."); }
+
     url.searchParams.delete("code");
     history.replaceState({}, "", url.pathname + (url.search?("?"+url.search):"") + url.hash);
   }
@@ -148,6 +166,7 @@ const api = {
     if(!res.ok) throw new Error(`GET /properties failed: ${res.status}`);
     return res.json();
   },
+
   async createProperty(payload){
     const at = window.auth.getAccessToken();
     if(!at) throw new Error("Not authenticated");
@@ -163,6 +182,7 @@ const api = {
     if(!res.ok){ const txt=await res.text(); throw new Error(`POST /properties failed: ${res.status} ${txt}`); }
     return res.json();
   },
+
   async updateProperty(id, payload){
     const at = window.auth.getAccessToken();
     if(!at) throw new Error("Not authenticated");
@@ -178,6 +198,7 @@ const api = {
     if(!res.ok){ const txt=await res.text(); throw new Error(`PUT /properties failed: ${res.status} ${txt}`); }
     return res.json();
   },
+
   async deleteProperty(id){
     const at = window.auth.getAccessToken();
     if(!at) throw new Error("Not authenticated");
@@ -190,7 +211,7 @@ const api = {
   },
 
   // -------- CONTACT FORM --------
-    async sendContact(payload){
+  async sendContact(payload){
     const res = await fetch(`${API_BASE}/contact`, {
       method: "POST",
       // IMPORTANT: don't set Content-Type so we avoid CORS preflight
@@ -200,10 +221,8 @@ const api = {
       const txt = await res.text().catch(() => "");
       throw new Error(`POST /contact failed: ${res.status} ${txt}`);
     }
-    // backend might just return { ok: true }; be tolerant
     return res.json().catch(() => ({}));
   }
-
 };
 
 window.api = api;

@@ -4,15 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>340 Rentals VI – Contact</title>
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="navbar">
-    <div class="logo">🏠 340 Rentals</div>
+    <div class="logo">340 Rentals VI</div>
     <nav>
       <a href="index.html" class="btn">Home</a>
       <a href="rentals.html" class="btn">Rentals</a>
-      <span id="userInfo" style="margin:0 .5rem; display:none;"></span>
+      <a href="contact.html" class="btn">Contact</a>
+      <a href="admin.html" class="btn" id="adminLink" style="display:none;">Manage Listings</a>
+
+      <span id="userInfo" class="userInfo" style="display:none;"></span>
       <a id="loginBtn" class="btn" href="#" onclick="startLogin(event)">Owner Login</a>
       <a id="logoutBtn" class="btn" href="#" onclick="startLogout(event)" style="display:none;">Logout</a>
     </nav>
@@ -20,38 +24,81 @@
 
   <main class="content">
     <h1>Contact Us</h1>
-    <p>If you’re interested in a property or have any questions, send us a message and we’ll get back to you.</p>
+    <p class="muted">If you’re interested in a property or have any questions, send us a message and we’ll get back to you.</p>
 
-    <form id="contactForm" class="card" style="max-width:600px;margin-top:1rem;">
-      <div class="form-row">
-        <label for="name">Name<span style="color:red;">*</span></label>
-        <input id="name" name="name" type="text" required />
+    <div class="contact-layout">
+      <div class="card contact-card">
+        <div class="card-body">
+          <h2 class="h3">Contact Information</h2>
+          <div class="contact-line"><strong>Darius “Derrick” Chudyk</strong></div>
+          <div class="contact-line"><a href="tel:13402032624">340-203-2624</a></div>
+          <div class="contact-line"><a href="mailto:Operations.340rentalsvi@gmail.com">Operations.340rentalsvi@gmail.com</a></div>
+          <div class="contact-line">P.O. Box 600342, St. Thomas, VI 00801</div>
+          <div class="contact-line muted">Office Hours: Mon–Fri, 9:00 AM – 4:00 PM</div>
+          <div class="contact-note">Applicants subject to background check.</div>
+        </div>
       </div>
 
-      <div class="form-row">
-        <label for="email">Email<span style="color:red;">*</span></label>
-        <input id="email" name="email" type="email" required />
-      </div>
+      <form id="contactForm" class="card" style="margin:0;">
+        <div class="card-body">
+          <h2 class="h3">Send a Message</h2>
 
-      <div class="form-row">
-        <label for="phone">Phone</label>
-        <input id="phone" name="phone" type="tel" />
-      </div>
+          <div class="form-row">
+            <label for="name">Name<span class="req">*</span></label>
+            <input id="name" name="name" type="text" required />
+          </div>
 
-      <div class="form-row">
-        <label for="subject">Subject</label>
-        <input id="subject" name="subject" type="text" placeholder="Interested in 2bd in St. Augustine, etc." />
-      </div>
+          <div class="form-row">
+            <label for="email">Email<span class="req">*</span></label>
+            <input id="email" name="email" type="email" required />
+          </div>
 
-      <div class="form-row">
-        <label for="message">Message<span style="color:red;">*</span></label>
-        <textarea id="message" name="message" rows="5" required></textarea>
-      </div>
+          <div class="form-row">
+            <label for="phone">Phone</label>
+            <input id="phone" name="phone" type="tel" />
+          </div>
 
-      <button type="submit" class="btn primary">Send Message</button>
-      <span id="contactStatus" style="margin-left:0.75rem;font-size:0.9rem;"></span>
-    </form>
+          <div class="form-row">
+            <label for="subject">Subject</label>
+            <input id="subject" name="subject" type="text" placeholder="Interested in 2bd in St. Thomas, etc." />
+          </div>
+
+          <div class="form-row">
+            <label for="message">Message<span class="req">*</span></label>
+            <textarea id="message" name="message" rows="5" required></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn primary">Send Message</button>
+            <span id="contactStatus" class="muted" style="margin-left:0.75rem;font-size:0.95rem;"></span>
+          </div>
+        </div>
+      </form>
+    </div>
   </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-title">340 Rentals VI</div>
+        <div class="footer-muted">Property Management • St. Thomas, U.S. Virgin Islands</div>
+      </div>
+
+      <div class="footer-block">
+        <div class="footer-label">Contact</div>
+        <div>Darius “Derrick” Chudyk</div>
+        <div><a href="tel:13402032624">340-203-2624</a></div>
+        <div><a href="mailto:Operations.340rentalsvi@gmail.com">Operations.340rentalsvi@gmail.com</a></div>
+        <div>P.O. Box 600342, St. Thomas, VI 00801</div>
+        <div class="footer-muted">Office Hours: Mon–Fri, 9:00 AM – 4:00 PM</div>
+      </div>
+
+      <div class="footer-block">
+        <div class="footer-label">Note</div>
+        <div class="footer-muted">Applicants subject to background check.</div>
+      </div>
+    </div>
+  </footer>
 
   <script src="script.js"></script>
   <script>

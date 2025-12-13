@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>340 Rentals VI – Admin</title>
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="styles.css" />
   <style>
     .admin-wrap {
@@ -103,15 +104,19 @@
 
 <body>
   <header class="navbar">
-    <div class="logo">🏠 <!-- TODO: COMPANY NAME -->Company Name</div>
-    <nav>
-      <a href="index.html" class="btn">Home</a>
-      <a href="rentals.html" class="btn">Rentals</a>
-      <span id="userInfo" style="margin:0 .5rem; display:none;"></span>
-      <a id="loginBtn" class="btn" href="#" onclick="startLogin(event)">Owner Login</a>
-      <a id="logoutBtn" class="btn" href="#" onclick="startLogout(event)" style="display:none;">Logout</a>
-    </nav>
-  </header>
+  <div class="logo">340 Rentals VI</div>
+  <nav>
+    <a href="index.html" class="btn">Home</a>
+    <a href="rentals.html" class="btn">Rentals</a>
+    <a href="contact.html" class="btn">Contact</a>
+    <a href="admin.html" class="btn" id="adminLink" style="display:none;">Manage Listings</a>
+
+    <span id="userInfo" class="userInfo" style="display:none;"></span>
+    <a id="loginBtn" class="btn" href="#" onclick="startLogin(event)">Owner Login</a>
+    <a id="logoutBtn" class="btn" href="#" onclick="startLogout(event)" style="display:none;">Logout</a>
+  </nav>
+</header>
+
 
   <main class="admin-wrap">
     <h2>Manage Listings</h2>

@@ -3,36 +3,168 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>340 Rentals VI</title> <!-- ← placeholder -->
+  <title>340 Rentals VI</title>
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Header / Navbar -->
   <header class="navbar">
-    <div class="logo">🏠 340 Rentals</div> <!-- ← placeholder -->
+    <div class="logo">340 Rentals VI</div>
     <nav>
+      <a href="index.html" class="btn">Home</a>
+      <a href="rentals.html" class="btn">Rentals</a>
       <a href="contact.html" class="btn">Contact</a>
-      <a href="rentals.html" class="btn primary">Rentals</a>
-      <a href="admin.html" class="btn">Manage Listings</a>
+      <a href="admin.html" class="btn" id="adminLink" style="display:none;">Manage Listings</a>
 
-
-      <!-- Auth UI (driven by script.js) -->
-      <span id="userInfo" style="margin-right:.5rem; display:none;"></span>
+      <span id="userInfo" class="userInfo" style="display:none;"></span>
       <a id="loginBtn" class="btn" href="#" onclick="startLogin(event)">Owner Login</a>
       <a id="logoutBtn" class="btn" href="#" onclick="startLogout(event)" style="display:none;">Logout</a>
     </nav>
   </header>
 
-  <!-- Hero Section -->
-  <section class="hero">
-    <h1>Welcome to 340 Rentals</h1> <!-- ← placeholder -->
-    <p>Providing quality rental properties with ease of access and trusted management.</p>
-    <div class="cta">
-      <a href="rentals.html" class="btn primary">View Rentals</a>
-      <a href="contact.html" class="btn">Contact Us</a>
-    </div>
-  </section>
+  <main>
+    <section class="hero">
+      <h1>Professional Property Management on St. Thomas</h1>
+      <p>
+        340 Enterprises, LLC has provided high-quality, professional property management services for over 20 years on St. Thomas,
+        U.S. Virgin Islands. Our management team brings a combined 115 years of experience in property management, construction,
+        security, finance, accounting, and law. We provide full-service management for both residential and commercial properties.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="rentals.html">View Rentals</a>
+        <a class="btn primary" href="contact.html">Contact Us</a>
+      </div>
+    </section>
+
+    <section class="mission">
+      <div class="content">
+        <h2>Our Mission</h2>
+        <p>To provide the highest quality, professional property management services on St. Thomas, U.S. Virgin Islands!</p>
+      </div>
+    </section>
+
+    <section class="content">
+      <div class="section-head">
+        <h2>Featured Rentals</h2>
+        <p class="muted">A few currently available listings.</p>
+      </div>
+
+      <div id="featuredGrid" class="grid"></div>
+
+      <div class="section-cta">
+        <a class="btn primary" href="rentals.html">View All Rentals</a>
+      </div>
+    </section>
+
+    <section class="content">
+      <div class="section-head">
+        <h2>Services</h2>
+        <p class="muted">Month-to-month management of property in all aspects, including:</p>
+      </div>
+
+      <div class="services">
+        <ul>
+          <li>Collection of rents &amp; remittance to landlords</li>
+          <li>Maintenance of security deposits and last-month rent in escrow</li>
+          <li>Advertising vacant property for rent</li>
+          <li>Background checks for all prospective tenants</li>
+          <li>Initial walk-through and inspection with all new tenants</li>
+          <li>End-of-lease inspection with tenant to determine security deposit return</li>
+        </ul>
+        <ul>
+          <li>Quarterly inspection of all properties</li>
+          <li>Respond to repair / breakdown issues that may arise</li>
+          <li>Oversee and coordinate maintenance (landscaping, pool cleaning, etc.)</li>
+          <li>Refer tenants to legal counsel for eviction proceedings when necessary</li>
+          <li>Specialize in management services for off-island landlords</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div>
+          <div class="footer-title">340 Rentals VI</div>
+          <div class="footer-muted">Property Management • St. Thomas, U.S. Virgin Islands</div>
+        </div>
+
+        <div class="footer-block">
+          <div class="footer-label">Contact</div>
+          <div>Darius “Derrick” Chudyk</div>
+          <div><a href="tel:13402032624">340-203-2624</a></div>
+          <div><a href="mailto:Operations.340rentalsvi@gmail.com">Operations.340rentalsvi@gmail.com</a></div>
+          <div>P.O. Box 600342, St. Thomas, VI 00801</div>
+          <div class="footer-muted">Office Hours: Mon–Fri, 9:00 AM – 4:00 PM</div>
+        </div>
+
+        <div class="footer-block">
+          <div class="footer-label">Note</div>
+          <div class="footer-muted">Applicants subject to background check.</div>
+        </div>
+      </div>
+    </footer>
+  </main>
 
   <script src="script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const grid = document.getElementById('featuredGrid');
+
+      function cardHtml(p) {
+        const img = (p.photos && p.photos[0]) || (p.images && p.images[0]) || '';
+        const address = p.address || '';
+        const city = p.city || '';
+        const mapQuery = (address || city).trim();
+        const mapLink = mapQuery
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
+          : '';
+
+        return `
+          <div class="card">
+            <div class="carousel">
+              ${img ? `<img src="${img}" alt="${(p.title||'').replace(/"/g,'&quot;')}" />`
+                    : `<div class="img-placeholder"></div>`}
+            </div>
+
+            <div class="card-body">
+              <div class="title-row">
+                <div class="card-title">${p.title || ''}</div>
+                <div class="price">$${Number(p.price || 0).toLocaleString()}</div>
+              </div>
+
+              <div class="meta">
+                ${p.bedrooms || 0} bd • ${p.bathrooms || 0} ba
+                ${p.city ? ' • ' + p.city : ''}
+              </div>
+
+              ${(address || city) ? `<div class="submeta">${address || city}</div>` : ''}
+
+              <div class="card-actions">
+                ${mapLink ? `<a class="btn small" href="${mapLink}" target="_blank" rel="noopener">View on Map</a>` : ''}
+                <a class="btn small primary" href="contact.html">Inquire</a>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      try {
+        const all = await window.api.getProperties({});
+        const featured = (all || [])
+          .filter(p => p && p.available)
+          .slice(0, 4);
+
+        if (!featured.length) {
+          grid.innerHTML = `<p class="muted">No available rentals are currently listed.</p>`;
+          return;
+        }
+
+        grid.innerHTML = featured.map(cardHtml).join('');
+      } catch (err) {
+        console.error(err);
+        grid.innerHTML = `<p class="muted">Unable to load featured rentals right now.</p>`;
+      }
+    });
+  </script>
 </body>
 </html>
